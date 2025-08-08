@@ -9,17 +9,18 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   color: #333;
-  background: #fafafa;
+  /* A subtle gradient background to give the site a bit more character */
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8f8ff 100%);
   padding: 20px;
 }
 
 .container {
   max-width: 900px;
   margin: 0 auto;
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 h1 {
@@ -28,11 +29,12 @@ h1 {
 }
 
 h2 {
-  margin-top: 30px;
-  margin-bottom: 10px;
+  margin-top: 32px;
+  margin-bottom: 12px;
   font-size: 1.5rem;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 5px;
+  border-bottom: 2px solid #d8d8e8;
+  padding-bottom: 6px;
+  color: #2d3a71;
 }
 
 p {
@@ -62,13 +64,14 @@ p {
   color: #fff;
 }
 
-/* Entry table styles */
+/* Table styles for entry, scoreboard and totals */
 .entry-table,
 #scoreboard-table,
 #totals-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 20px;
+  table-layout: fixed;
 }
 
 .entry-table th,
@@ -77,35 +80,72 @@ p {
 #scoreboard-table td,
 #totals-table th,
 #totals-table td {
-  padding: 8px;
-  border: 1px solid #ddd;
+  padding: 10px;
+  border: 1px solid #e2e6f0;
   text-align: center;
+  font-size: 0.95rem;
 }
 
 .entry-table th {
-  background-color: #f5f5f5;
+  background-color: #eef2ff;
+  color: #2d3a71;
 }
 
-.entry-table input[type="number"] {
-  width: 80px;
-  padding: 4px;
+/* Textareas for share inputs */
+.entry-table textarea {
+  width: 100%;
+  min-height: 50px;
+  padding: 6px;
+  border: 1px solid #ccd4e0;
+  border-radius: 4px;
+  resize: vertical;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background-color: #fbfcff;
 }
 
-.primary-button {
+/* Make scoreboard headers stand out */
+#scoreboard-table th,
+#totals-table th {
+  background-color: #e8eefc;
+  color: #2d3a71;
+}
+
+/* Row striping for scoreboard for readability */
+#scoreboard-table tbody tr:nth-child(odd),
+#totals-table tbody tr:nth-child(odd) {
+  background-color: #f8f9fc;
+}
+
+/* Primary and secondary buttons */
+.primary-button,
+.secondary-button {
   display: inline-block;
-  background-color: #28a745;
-  color: #fff;
   border: none;
   padding: 10px 16px;
-  margin-top: 10px;
+  margin-top: 12px;
   border-radius: 4px;
   font-size: 1rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.primary-button {
+  background-color: #0061b1;
+  color: #ffffff;
 }
 
 .primary-button:hover {
-  background-color: #218838;
+  background-color: #004d8d;
+}
+
+.secondary-button {
+  background-color: #eef2ff;
+  color: #2d3a71;
+}
+
+.secondary-button:hover {
+  background-color: #d9e3ff;
 }
 
 /* Responsive adjustments */
@@ -117,7 +157,7 @@ p {
   #totals-table th,
   #totals-table td {
     font-size: 0.8rem;
-    padding: 6px;
+    padding: 8px;
   }
 
   #links ul {
@@ -126,4 +166,35 @@ p {
   #links li a {
     width: fit-content;
   }
+}
+
+/* Remote sync form styling */
+#remote-section {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #e2e6f0;
+  border-radius: 8px;
+  background-color: #f6f8ff;
+}
+
+#remote-section form {
+  margin-top: 8px;
+}
+
+#remote-section input[type="password"] {
+  padding: 6px;
+  border: 1px solid #ccd4e0;
+  border-radius: 4px;
+  margin-left: 4px;
+  font-size: 0.9rem;
+}
+
+#remote-section label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+#remote-section p {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
 }
