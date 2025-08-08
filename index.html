@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Game Scorekeeper</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Word Game Scorekeeper</h1>
+      <p>Track daily results for Wordle, Quordle and Octordle across you, your step‑brother and dad.  
+         Points are awarded each day based on who solves their puzzle in the fewest guesses.  
+         Wordle winners earn 1 point, Quordle winners earn 2 points, and Octordle winners earn 3 points.  
+         A bust (failure to solve) costs −1 point. Tied players split the available points.</p>
+    </header>
+
+    <section id="links">
+      <h2>Play Today's Games</h2>
+      <ul>
+        <!--
+          According to reporting on Wordle and its clones, the original Wordle was acquired by the New York Times
+          and moved to their games platform in 2022【455820565006091†L365-L373】.  The popular Quordle variation is
+          now hosted by Merriam‑Webster【982243656821088†L200-L209】, and Octordle can be played on Britannica's
+          games portal【308170557070922†L260-L276】.  These links open the official versions in new tabs.
+        -->
+        <li><a href="https://www.nytimes.com/games/wordle/index.html" target="_blank" rel="noopener noreferrer">Wordle (New York&nbsp;Times)</a></li>
+        <li><a href="https://www.merriam-webster.com/games/quordle" target="_blank" rel="noopener noreferrer">Quordle (Merriam‑Webster)</a></li>
+        <li><a href="https://www.britannica.com/games/octordle" target="_blank" rel="noopener noreferrer">Octordle (Britannica)</a></li>
+      </ul>
+    </section>
+
+    <section id="entry-section">
+      <h2>Enter Today's Results</h2>
+      <form id="score-form" autocomplete="off" onsubmit="return false;">
+        <table class="entry-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Wordle Guesses<br><small>(0 for bust)</small></th>
+              <th>Quordle Guesses<br><small>(0 for bust)</small></th>
+              <th>Octordle Guesses<br><small>(0 for bust)</small></th>
+            </tr>
+          </thead>
+          <tbody id="entry-table-body">
+            <!-- populated by script.js -->
+          </tbody>
+        </table>
+        <button type="button" id="add-button" class="primary-button">Add Today's Score</button>
+      </form>
+    </section>
+
+    <section id="scoreboard-section">
+      <h2>Scoreboard</h2>
+      <table id="scoreboard-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Player</th>
+            <th>Wordle Points</th>
+            <th>Quordle Points</th>
+            <th>Octordle Points</th>
+            <th>Total Points</th>
+          </tr>
+        </thead>
+        <tbody id="scoreboard-body">
+          <!-- rows inserted by script.js -->
+        </tbody>
+      </table>
+    </section>
+
+    <section id="totals-section">
+      <h2>Cumulative Results</h2>
+      <table id="totals-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Wordle Wins</th>
+            <th>Quordle Wins</th>
+            <th>Octordle Wins</th>
+            <th>Losses</th>
+            <th>Busts</th>
+            <th>Total Points</th>
+          </tr>
+        </thead>
+        <tbody id="totals-body">
+          <!-- rows inserted by script.js -->
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
