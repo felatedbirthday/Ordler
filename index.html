@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Word Game Scorekeeper</title>
+  <title>Ordler</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Word Game Scorekeeper</h1>
-      <p>Track daily results for Wordle, Quordle and Octordle across you, your step‑brother and dad.  
-         Points are awarded each day based on who solves their puzzle in the fewest guesses.  
+      <h1>Ordler</h1>
+      <p>Points are awarded each day based on who solves their puzzle in the fewest guesses.  
          Wordle winners earn 1 point, Quordle winners earn 2 points, and Octordle winners earn 3 points.  
          A bust (failure to solve) costs −1 point. Tied players split the available points.</p>
     </header>
@@ -25,7 +24,7 @@
           now hosted by Merriam‑Webster【982243656821088†L200-L209】, and Octordle can be played on Britannica's
           games portal【308170557070922†L260-L276】.  These links open the official versions in new tabs.
         -->
-        <li><a href="https://www.nytimes.com/games/wordle/index.html" target="_blank" rel="noopener noreferrer">Wordle (New York&nbsp;Times)</a></li>
+        <li><a href="https://www.nytimes.com/games/wordle/index.html" target="_blank" rel="noopener noreferrer">Wordle (New York Times)</a></li>
         <li><a href="https://www.merriam-webster.com/games/quordle" target="_blank" rel="noopener noreferrer">Quordle (Merriam‑Webster)</a></li>
         <li><a href="https://www.britannica.com/games/octordle" target="_blank" rel="noopener noreferrer">Octordle (Britannica)</a></li>
       </ul>
@@ -38,9 +37,9 @@
           <thead>
             <tr>
               <th>Player</th>
-              <th>Wordle Guesses<br><small>(0 for bust)</small></th>
-              <th>Quordle Guesses<br><small>(0 for bust)</small></th>
-              <th>Octordle Guesses<br><small>(0 for bust)</small></th>
+              <th>Wordle Share<br><small>paste your share result</small></th>
+              <th>Quordle Share<br><small>paste your share result</small></th>
+              <th>Octordle Share<br><small>paste your share result</small></th>
             </tr>
           </thead>
           <tbody id="entry-table-body">
@@ -48,6 +47,21 @@
           </tbody>
         </table>
         <button type="button" id="add-button" class="primary-button">Add Today's Score</button>
+      </form>
+    </section>
+
+    <section id="remote-section">
+      <h2>Remote Sync Settings</h2>
+      <p>If you'd like to synchronise scores across devices, you can enable
+      remote syncing via GitHub. The scoreboard data will be stored in
+      <code>scoreboard.json</code> in this repository. You only need to
+      provide a GitHub personal access token with "repo" scope once per
+      device. Leaving these fields blank will still load the remote
+      scoreboard but will not write updates back to GitHub.</p>
+      <form id="remote-form" autocomplete="off" onsubmit="return false;">
+        <label><input type="checkbox" id="enable-remote" checked> Enable remote sync</label><br>
+        <label>GitHub Token: <input type="password" id="github-token" placeholder="Paste PAT here"></label>
+        <button type="button" id="remote-save-button" class="secondary-button">Save Remote Settings</button>
       </form>
     </section>
 
