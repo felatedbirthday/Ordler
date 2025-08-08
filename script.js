@@ -10,15 +10,59 @@ const STORAGE_KEY = 'wordGameScoreboard';
 // { date: 'YYYY-MM-DD', player: String, wordlePoints: Number, quordlePoints: Number, octordlePoints: Number, totalPoints: Number }
 let scoreboard = [];
 
+/**
+ * On first run of the updated site (v2), clear any legacy scoreboard data
+ * that does not include the share strings and puzzle numbers. Older
+ * versions stored entries without these fields, which will break the new
+ * scoring logic. A marker key in localStorage ensures the purge only
+ * happens once per device. If a valid scoreboard is detected this
+ * function does nothing.
+ */
+function clearOldStorageIfNeeded() {
+  const markerKey = 'scoreboardClearedV2';
+  if (localStorage.getItem(markerKey)) {
+    return;
+  }
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (Array.isArray(data) && data.length > 0) {
+        const sample = data[0];
+        // If the entry does not include share fields or puzzle numbers, wipe
+        const missingFields = !('wordleShare' in sample) || !('quordleShare' in sample) || !('octordleShare' in sample);
+        const missingPuzzles = !('wordlePuzzle' in sample) || !('quordlePuzzle' in sample) || !('octordlePuzzle' in sample);
+        if (missingFields || missingPuzzles) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+    }
+  } catch (err) {
+    // If parsing fails, clear the corrupt data
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  localStorage.setItem(markerKey, 'true');
+}
+
 // Initialise the form and load stored data when the page is ready
 document.addEventListener('DOMContentLoaded', () => {
-  buildEntryRows();
+      // Remove any stale data from older versions of this site (pre‑v2). This
+      // ensures that previously stored scoreboard entries that do not contain
+      // share results or puzzle numbers are cleared. The operation runs only
+      // once per device thanks to a marker in localStorage.
+      clearOldStorageIfNeeded();
+
+      buildEntryRows();
   // Attempt to load stored data from localStorage and remote GitHub file
   // before rendering the scoreboard. If a remote file is configured and
   // successfully fetched, it will overwrite local storage.
   loadData().then(() => {
     renderScoreboard();
     renderTotals();
+    // Show today's results if any exist. This ensures the daily results
+    // section always reflects the current date when the page loads.
+    const todayStr = new Date().toISOString().split('T')[0];
+    renderDailyResults(todayStr);
   });
 
   document.getElementById('add-button').addEventListener('click', handleAdd);
@@ -63,13 +107,23 @@ document.addEventListener('DOMContentLoaded', () => {
       loadData().then(() => {
         renderScoreboard();
         renderTotals();
+        // Automatically display the daily results for the most recent date
+        // once the scoreboard has been loaded. This shows the latest day's
+        // raw share results if available.
+        if (scoreboard.length > 0) {
+          // Scoreboard is sorted in renderScoreboard but not necessarily here;
+          // find the max date in the existing entries.
+          const dates = scoreboard.map((e) => e.date);
+          const latestDate = dates.sort().reverse()[0];
+          renderDailyResults(latestDate);
+        }
       });
       alert('Remote settings saved.');
     });
   }
 });
 
-// Build table rows for each player in the daily entry form
+    // Build table rows for each player in the daily entry form
 function buildEntryRows() {
   const tbody = document.getElementById('entry-table-body');
   tbody.innerHTML = '';
@@ -100,68 +154,133 @@ function handleAdd() {
     if (!overwrite) {
       return;
     }
+
     // Remove all entries for this date
     scoreboard = scoreboard.filter((entry) => entry.date !== dateStr);
   }
 
   // Gather share texts for each player and game and parse into numerical
-  // scores. A score of 0 indicates a bust (failure to solve) and will
-  // trigger a −1 point penalty later. For Wordle we extract the number of
-  // guesses (1–6) from the share string; for Quordle and Octordle we
-  // accumulate the individual board guesses (1–9 for Quordle, 1–13 for
-  // Octordle). If any board is marked with an X, the entire game is
-  // considered a bust (score 0).
+  // scores as well as puzzle identifiers. A guess count of 0 indicates a bust
+  // (failure to solve). We require that all players provide share results for
+  // all three games before scoring can occur. Puzzle numbers must match
+  // across players to ensure everyone is playing the same daily puzzles.
   const results = {};
+  let allProvided = true;
+  let wordlePuzzle = null;
+  let quordlePuzzle = null;
+  let octordlePuzzle = null;
+  let puzzleMismatch = false;
   players.forEach((p) => {
-    const wordleShare = document.querySelector(`textarea[data-player="${p}"][data-game="wordle"]`).value.trim();
-    const quordleShare = document.querySelector(`textarea[data-player="${p}"][data-game="quordle"]`).value.trim();
-    const octordleShare = document.querySelector(`textarea[data-player="${p}"][data-game="octordle"]`).value.trim();
+    const wordleShare = document
+      .querySelector(`textarea[data-player="${p}"][data-game="wordle"]`)
+      .value.trim();
+    const quordleShare = document
+      .querySelector(`textarea[data-player="${p}"][data-game="quordle"]`)
+      .value.trim();
+    const octordleShare = document
+      .querySelector(`textarea[data-player="${p}"][data-game="octordle"]`)
+      .value.trim();
+    if (!wordleShare || !quordleShare || !octordleShare) {
+      allProvided = false;
+    }
+    const parsedW = parseWordleShareDetailed(wordleShare);
+    const parsedQ = parseQuordleShareDetailed(quordleShare);
+    const parsedO = parseOctordleShareDetailed(octordleShare);
+    // Validate puzzle numbers
+    if (parsedW.puzzle !== null) {
+      if (wordlePuzzle === null) {
+        wordlePuzzle = parsedW.puzzle;
+      } else if (wordlePuzzle !== parsedW.puzzle) {
+        puzzleMismatch = true;
+      }
+    } else {
+      puzzleMismatch = true;
+    }
+    if (parsedQ.puzzle !== null) {
+      if (quordlePuzzle === null) {
+        quordlePuzzle = parsedQ.puzzle;
+      } else if (quordlePuzzle !== parsedQ.puzzle) {
+        puzzleMismatch = true;
+      }
+    } else {
+      puzzleMismatch = true;
+    }
+    if (parsedO.puzzle !== null) {
+      if (octordlePuzzle === null) {
+        octordlePuzzle = parsedO.puzzle;
+      } else if (octordlePuzzle !== parsedO.puzzle) {
+        puzzleMismatch = true;
+      }
+    } else {
+      puzzleMismatch = true;
+    }
     results[p] = {
-      wordle: parseWordleShare(wordleShare),
-      quordle: parseQuordleShare(quordleShare),
-      octordle: parseOctordleShare(octordleShare),
+      wordle: parsedW.guesses,
+      quordle: parsedQ.guesses,
+      octordle: parsedO.guesses,
+      wordleShare,
+      quordleShare,
+      octordleShare,
     };
   });
-
-  // Compute points for each game
+  if (!allProvided) {
+    alert(
+      'All players must paste their Wordle, Quordle and Octordle share results before scores can be calculated.'
+    );
+    return;
+  }
+  if (
+    puzzleMismatch ||
+    wordlePuzzle === null ||
+    quordlePuzzle === null ||
+    octordlePuzzle === null
+  ) {
+    alert(
+      'The share results do not appear to come from the same daily puzzles. Please ensure each player is submitting today\'s Wordle, Quordle and Octordle share strings.'
+    );
+    return;
+  }
+  // Compute points for each game. The lowest non‑zero guess wins; busts
+  // (guesses = 0) incur a −1 penalty. Points are split evenly among tied
+  // winners.
   const pointsByPlayer = {};
   players.forEach((p) => {
     pointsByPlayer[p] = { wordle: 0, quordle: 0, octordle: 0, total: 0 };
   });
-
-  // Helper function to calculate game points
   const calculateGamePoints = (game, basePoints) => {
-    // Build array of players who have a positive guess (success). 0 indicates bust.
     const validResults = players
       .filter((p) => results[p][game] > 0)
       .map((p) => results[p][game]);
     let winners = [];
+    // Determine winners among players who have a non‑zero guess (i.e.
+    // successfully solved the game). If at least one player solved the
+    // game, find the minimum guess and select all players with that guess
+    // as winners. Busts (guess = 0) are never considered winners.
     if (validResults.length > 0) {
       const minGuess = Math.min(...validResults);
-      winners = players.filter((p) => results[p][game] > 0 && results[p][game] === minGuess);
+      winners = players.filter(
+        (p) => results[p][game] > 0 && results[p][game] === minGuess
+      );
     }
-    const splitPoints = winners.length > 0 ? basePoints / winners.length : 0;
+    const splitPoints =
+      winners.length > 0 ? basePoints / winners.length : 0;
     players.forEach((p) => {
       let pts = 0;
       if (results[p][game] === 0) {
-        // bust penalty
         pts = -1;
       } else if (winners.includes(p)) {
         pts = splitPoints;
       } else {
-        // guessed but not fastest, no points awarded
         pts = 0;
       }
       pointsByPlayer[p][game] = pts;
       pointsByPlayer[p].total += pts;
     });
   };
-
   calculateGamePoints('wordle', 1);
   calculateGamePoints('quordle', 2);
   calculateGamePoints('octordle', 3);
-
-  // Build new entries for scoreboard
+  // Create entries for scoreboard including share results and puzzle numbers
   players.forEach((p) => {
     scoreboard.push({
       date: dateStr,
@@ -170,17 +289,20 @@ function handleAdd() {
       quordlePoints: pointsByPlayer[p].quordle,
       octordlePoints: pointsByPlayer[p].octordle,
       totalPoints: pointsByPlayer[p].total,
+      wordleShare: results[p].wordleShare,
+      quordleShare: results[p].quordleShare,
+      octordleShare: results[p].octordleShare,
+      wordlePuzzle,
+      quordlePuzzle,
+      octordlePuzzle,
     });
   });
 
   saveData();
-  // After persisting locally, attempt to push the update to GitHub if a
-  // personal access token has been provided. The remote update occurs
-  // asynchronously and does not block UI refresh.
   updateRemoteScoreboard();
   renderScoreboard();
   renderTotals();
-  // reset form fields
+  renderDailyResults(dateStr);
   document.getElementById('score-form').reset();
 }
 
@@ -230,6 +352,9 @@ function renderTotals() {
     } else {
       totals[p].losses += 1;
     }
+
+    // Note: renderDailyResults is defined at the top level of this file. See
+    // below for its implementation.
     // Quordle
     if (entry.quordlePoints > 0) {
       totals[p].quordleWins += 1;
@@ -401,6 +526,152 @@ function emojiToNumber(ch) {
     return parseInt(normalized, 10);
   }
   return null;
+}
+
+    /**
+     * Parse a Wordle share string and return both the number of guesses and the
+     * puzzle number. If the share indicates a failure (X/6) the guess count
+     * returned is 0 and the puzzle number is extracted from the first line
+     * where possible. Commas in the puzzle number (e.g., "1,234") are
+     * removed prior to parsing. If no puzzle identifier can be determined
+     * the `puzzle` property will be null.
+     * @param {string} share
+     * @returns {{guesses: number, puzzle: (number|null)}}
+     */
+    function parseWordleShareDetailed(share) {
+      if (!share) return { guesses: 0, puzzle: null };
+      const lines = share.split(/\n|\r/).filter((l) => l.trim().length > 0);
+      const first = lines[0] || '';
+      // Extract puzzle number after the word "Wordle" (allowing commas)
+      let puzzle = null;
+      const puzzleMatch = first.match(/Wordle\s+([0-9,]+)/i);
+      if (puzzleMatch) {
+        const clean = puzzleMatch[1].replace(/,/g, '');
+        const num = parseInt(clean, 10);
+        if (!Number.isNaN(num)) puzzle = num;
+      }
+      // Extract the guess pattern like "4/6" or "X/6" from the first line.
+      // If no pattern is found, treat it as a very high guess (not a bust)
+      // so that non‑matching results do not incur a –1 penalty. A proper
+      // failure share uses "X/6" which will still return 0.
+      let guesses = 0;
+      const guessMatch = first.match(/([0-9Xx])\s*\/\s*6/);
+      if (guessMatch) {
+        const val = guessMatch[1];
+        if (val.toLowerCase() === 'x') {
+          guesses = 0;
+        } else {
+          const num = parseInt(val, 10);
+          guesses = Number.isNaN(num) ? 0 : num;
+        }
+      } else {
+        // No guess pattern detected; assign a high number to mark as solved but not a bust
+        guesses = 99;
+      }
+      return { guesses, puzzle };
+    }
+
+    /**
+     * Parse a Quordle share string and return both the total number of guesses
+     * across all four boards and the puzzle number. Puzzle numbers are
+     * extracted from patterns like "Daily Quordle 1234" or "Quordle 1234" or
+     * "Quordle #1234". If a failure marker (X/x) is found the guess count is
+     * 0. If a puzzle identifier cannot be detected the puzzle property will
+     * be null.
+     * @param {string} share
+     * @returns {{guesses: number, puzzle: (number|null)}}
+     */
+    function parseQuordleShareDetailed(share) {
+      if (!share) return { guesses: 0, puzzle: null };
+      // Guess count uses existing helper which returns 0 on bust or unknown
+      const rawGuesses = parseQuordleShare(share);
+      // If no digits were detected but there is no explicit fail marker (X),
+      // treat the game as solved with a high guess count instead of a bust. This
+      // prevents players from receiving a −1 penalty when the parser fails to
+      // recognise their digit lines. A true bust is indicated with an X in the
+      // share text and will remain at 0.
+      let guesses = rawGuesses;
+      if (rawGuesses === 0) {
+        const hasFail = /X/i.test(share);
+        if (!hasFail) {
+          guesses = 99;
+        }
+      }
+      let puzzle = null;
+      const match = share.match(/Quordle\s+(?:#)?(\d+)/i) || share.match(/Daily\s+Quordle\s+(?:#)?(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!Number.isNaN(num)) puzzle = num;
+      }
+      return { guesses, puzzle };
+    }
+
+    /**
+     * Parse an Octordle share string and return both the total number of guesses
+     * across all eight boards and the puzzle number. Puzzle numbers are
+     * extracted from patterns like "Daily Octordle #1234" or "Octordle #1234".
+     * If a failure marker (X/x) is found the guess count is 0. If a puzzle
+     * identifier cannot be detected the puzzle property will be null.
+     * @param {string} share
+     * @returns {{guesses: number, puzzle: (number|null)}}
+     */
+    function parseOctordleShareDetailed(share) {
+      if (!share) return { guesses: 0, puzzle: null };
+      const rawGuesses = parseOctordleShare(share);
+      // Similar to Quordle parsing: if no digits were detected and there is no
+      // explicit fail marker, assign a high guess count. This avoids marking
+      // ambiguous shares as busts and issuing unnecessary −1 penalties.
+      let guesses = rawGuesses;
+      if (rawGuesses === 0) {
+        const hasFail = /X/i.test(share);
+        if (!hasFail) {
+          guesses = 99;
+        }
+      }
+      let puzzle = null;
+      // Match both forms: "Daily Octordle #1234" or "Octordle #1234"
+      const match = share.match(/Octordle\s*(?:#)?(\d+)/i) || share.match(/Daily\s+Octordle\s*(?:#)?(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!Number.isNaN(num)) puzzle = num;
+      }
+      return { guesses, puzzle };
+    }
+
+/**
+ * Render the daily results section for a given date. This section shows
+ * each player's raw share strings for Wordle, Quordle and Octordle for
+ * the selected day. If no entries exist for the date the section will be
+ * cleared. The share strings are displayed in a <pre> block to preserve
+ * whitespace and emoji formatting.
+ * @param {string} dateStr ISO date string (YYYY‑MM‑DD)
+ */
+function renderDailyResults(dateStr) {
+  const container = document.getElementById('daily-results-container');
+  if (!container) return;
+  container.innerHTML = '';
+  // Filter scoreboard for entries matching the given date
+  const entries = scoreboard.filter((entry) => entry.date === dateStr);
+  if (entries.length === 0) return;
+  players.forEach((p) => {
+    const entry = entries.find((e) => e.player === p);
+    if (entry) {
+      const card = document.createElement('div');
+      card.className = 'player-result';
+      const sections = [];
+      if (entry.wordleShare) {
+        sections.push('Wordle\n' + entry.wordleShare.trim());
+      }
+      if (entry.quordleShare) {
+        sections.push('Quordle\n' + entry.quordleShare.trim());
+      }
+      if (entry.octordleShare) {
+        sections.push('Octordle\n' + entry.octordleShare.trim());
+      }
+      card.innerHTML = `<h3>${p}</h3><pre>${sections.join('\n\n')}</pre>`;
+      container.appendChild(card);
+    }
+  });
 }
 
 // Update the remote scoreboard file in GitHub if a token has been
