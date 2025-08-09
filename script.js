@@ -67,58 +67,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('add-button').addEventListener('click', handleAdd);
 
-  // Initialise default remote settings. These variables can be updated
-  // through the remote settings form in the UI. By default we enable
-  // remote scoreboard to pull data from GitHub. Writing updates back to
-  // GitHub requires a personal access token.
+  // Default remote settings: always use the remote scoreboard on GitHub.  The
+  // scoreboard data will be persisted to the file defined by githubFilePath
+  // below.  Users must provide a personal access token via the input field
+  // for writes to succeed; reads work without authentication.
   window.githubOwner = window.githubOwner || 'felatedbirthday';
   window.githubRepo = window.githubRepo || 'Ordler';
   window.githubFilePath = window.githubFilePath || 'scoreboard.json';
-  // Use the default branch of this repository (GitHub sometimes names it "root" when no main branch exists).
-  // Adjust this to match the branch where scoreboard.json will reside.
+  // Use the current branch (root) by default.  If the repository has a
+  // different default branch (e.g. main), update this variable accordingly.
   window.githubBranch = window.githubBranch || 'root';
-  window.useRemoteScoreboard = typeof window.useRemoteScoreboard === 'boolean' ? window.useRemoteScoreboard : true;
+  // Remote scoreboard is always enabled to ensure cross‑device sync.  This
+  // value is no longer configurable via the UI.
+  window.useRemoteScoreboard = true;
 
-  // Populate remote form with previously saved token if present
+  // Populate the token input with any previously saved token
   const tokenInput = document.getElementById('github-token');
-  const enableRemoteCheckbox = document.getElementById('enable-remote');
   if (tokenInput) {
     tokenInput.value = localStorage.getItem('githubToken') || '';
   }
-  if (enableRemoteCheckbox) {
-    enableRemoteCheckbox.checked = window.useRemoteScoreboard;
-  }
-  // Save remote settings when the user clicks the button
+  // The remote save button now only stores the token; remote sync cannot be
+  // disabled.  When clicked it saves the token and reloads data.
   const remoteSaveButton = document.getElementById('remote-save-button');
   if (remoteSaveButton) {
     remoteSaveButton.addEventListener('click', () => {
-      const enabled = enableRemoteCheckbox.checked;
       const tok = tokenInput.value.trim();
-      window.useRemoteScoreboard = enabled;
       if (tok) {
         window.githubToken = tok;
         localStorage.setItem('githubToken', tok);
       }
-      // If disabling remote sync we clear token from memory but keep it in localStorage
-      if (!enabled) {
-        window.githubToken = undefined;
-      }
-      // Reload scoreboard from remote or local depending on new setting
+      // Reload scoreboard from remote to ensure the latest data is shown
       loadData().then(() => {
         renderScoreboard();
         renderTotals();
-        // Automatically display the daily results for the most recent date
-        // once the scoreboard has been loaded. This shows the latest day's
-        // raw share results if available.
         if (scoreboard.length > 0) {
-          // Scoreboard is sorted in renderScoreboard but not necessarily here;
-          // find the max date in the existing entries.
           const dates = scoreboard.map((e) => e.date);
           const latestDate = dates.sort().reverse()[0];
           renderDailyResults(latestDate);
         }
       });
-      alert('Remote settings saved.');
+      alert('GitHub token saved. Remote syncing is always enabled.');
     });
   }
 });
