@@ -24,7 +24,7 @@
           now hosted by Merriam‑Webster【982243656821088†L200-L209】, and Octordle can be played on Britannica's
           games portal【308170557070922†L260-L276】.  These links open the official versions in new tabs.
         -->
-        <li><a href="https://www.nytimes.com/games/wordle/index.html" target="_blank" rel="noopener noreferrer">Wordle (New York Times)</a></li>
+        <li><a href="https://www.nytimes.com/games/wordle/index.html" target="_blank" rel="noopener noreferrer">Wordle (New York&nbsp;Times)</a></li>
         <li><a href="https://www.merriam-webster.com/games/quordle" target="_blank" rel="noopener noreferrer">Quordle (Merriam‑Webster)</a></li>
         <li><a href="https://www.britannica.com/games/octordle" target="_blank" rel="noopener noreferrer">Octordle (Britannica)</a></li>
       </ul>
@@ -46,16 +46,20 @@
             <!-- populated by script.js -->
           </tbody>
         </table>
-        <button type="button" id="add-button" class="primary-button">Add Today's Score</button>
+        <p class="instructions">Each player can paste their share strings when ready. Your
+        individual results will be saved immediately. The daily points and
+        cumulative totals are calculated only after all three players have
+        submitted results for the same puzzles.</p>
+        <button type="button" id="add-button" class="primary-button">Save Today's Results</button>
       </form>
     </section>
 
-      <section id="daily-results-section">
-    <h2>Today's Player Results</h2>
-    <div id="daily-results-container">
-      <!-- Daily results will be inserted here by script.js -->
-    </div>
-  </section>
+    <section id="daily-results-section">
+      <h2>Today's Player Results</h2>
+      <div id="daily-results-container">
+        <!-- Daily results will be inserted here by script.js -->
+      </div>
+    </section>
 
     <section id="remote-section">
       <h2>Remote Sync Settings</h2>

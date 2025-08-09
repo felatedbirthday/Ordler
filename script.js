@@ -159,17 +159,17 @@ function handleAdd() {
     scoreboard = scoreboard.filter((entry) => entry.date !== dateStr);
   }
 
-  // Gather share texts for each player and game and parse into numerical
-  // scores as well as puzzle identifiers. A guess count of 0 indicates a bust
-  // (failure to solve). We require that all players provide share results for
-  // all three games before scoring can occur. Puzzle numbers must match
-  // across players to ensure everyone is playing the same daily puzzles.
+  // Gather share texts for each player and game and parse into numerical scores
+  // and puzzle identifiers. A guess count of 0 indicates a bust (failure to
+  // solve). Players can submit their own results at different times; we will
+  // accept whatever share strings are provided and save them. Points will be
+  // calculated only when all three players have submitted results for the
+  // same date and the puzzle numbers match.
   const results = {};
-  let allProvided = true;
-  let wordlePuzzle = null;
-  let quordlePuzzle = null;
-  let octordlePuzzle = null;
-  let puzzleMismatch = false;
+  let wordlePuzzleCandidates = [];
+  let quordlePuzzleCandidates = [];
+  let octordlePuzzleCandidates = [];
+
   players.forEach((p) => {
     const wordleShare = document
       .querySelector(`textarea[data-player="${p}"][data-game="wordle"]`)
@@ -180,134 +180,178 @@ function handleAdd() {
     const octordleShare = document
       .querySelector(`textarea[data-player="${p}"][data-game="octordle"]`)
       .value.trim();
-    if (!wordleShare || !quordleShare || !octordleShare) {
-      allProvided = false;
+    // If a player provided any share strings, parse them; otherwise leave
+    // results undefined for that player. Partial submissions are allowed.
+    if (wordleShare || quordleShare || octordleShare) {
+      const parsedW = parseWordleShareDetailed(wordleShare);
+      const parsedQ = parseQuordleShareDetailed(quordleShare);
+      const parsedO = parseOctordleShareDetailed(octordleShare);
+      results[p] = {
+        wordle: parsedW.guesses,
+        quordle: parsedQ.guesses,
+        octordle: parsedO.guesses,
+        wordleShare,
+        quordleShare,
+        octordleShare,
+        wordlePuzzle: parsedW.puzzle,
+        quordlePuzzle: parsedQ.puzzle,
+        octordlePuzzle: parsedO.puzzle,
+      };
+      if (parsedW.puzzle !== null) wordlePuzzleCandidates.push(parsedW.puzzle);
+      if (parsedQ.puzzle !== null) quordlePuzzleCandidates.push(parsedQ.puzzle);
+      if (parsedO.puzzle !== null) octordlePuzzleCandidates.push(parsedO.puzzle);
     }
-    const parsedW = parseWordleShareDetailed(wordleShare);
-    const parsedQ = parseQuordleShareDetailed(quordleShare);
-    const parsedO = parseOctordleShareDetailed(octordleShare);
-    // Validate puzzle numbers
-    if (parsedW.puzzle !== null) {
-      if (wordlePuzzle === null) {
-        wordlePuzzle = parsedW.puzzle;
-      } else if (wordlePuzzle !== parsedW.puzzle) {
-        puzzleMismatch = true;
-      }
-    } else {
-      puzzleMismatch = true;
-    }
-    if (parsedQ.puzzle !== null) {
-      if (quordlePuzzle === null) {
-        quordlePuzzle = parsedQ.puzzle;
-      } else if (quordlePuzzle !== parsedQ.puzzle) {
-        puzzleMismatch = true;
-      }
-    } else {
-      puzzleMismatch = true;
-    }
-    if (parsedO.puzzle !== null) {
-      if (octordlePuzzle === null) {
-        octordlePuzzle = parsedO.puzzle;
-      } else if (octordlePuzzle !== parsedO.puzzle) {
-        puzzleMismatch = true;
-      }
-    } else {
-      puzzleMismatch = true;
-    }
-    results[p] = {
-      wordle: parsedW.guesses,
-      quordle: parsedQ.guesses,
-      octordle: parsedO.guesses,
-      wordleShare,
-      quordleShare,
-      octordleShare,
-    };
-  });
-  if (!allProvided) {
-    alert(
-      'All players must paste their Wordle, Quordle and Octordle share results before scores can be calculated.'
-    );
-    return;
-  }
-  if (
-    puzzleMismatch ||
-    wordlePuzzle === null ||
-    quordlePuzzle === null ||
-    octordlePuzzle === null
-  ) {
-    alert(
-      'The share results do not appear to come from the same daily puzzles. Please ensure each player is submitting today\'s Wordle, Quordle and Octordle share strings.'
-    );
-    return;
-  }
-  // Compute points for each game. The lowest non‑zero guess wins; busts
-  // (guesses = 0) incur a −1 penalty. Points are split evenly among tied
-  // winners.
-  const pointsByPlayer = {};
-  players.forEach((p) => {
-    pointsByPlayer[p] = { wordle: 0, quordle: 0, octordle: 0, total: 0 };
-  });
-  const calculateGamePoints = (game, basePoints) => {
-    // Determine which players successfully solved the game (guess > 0)
-    const validResults = players
-      .filter((p) => results[p][game] > 0)
-      .map((p) => results[p][game]);
-    let winners = [];
-    const hasSolver = validResults.length > 0;
-    // If at least one player solved the game, find the minimum guess
-    // and select all players with that guess as winners. Otherwise there
-    // are no winners and no penalties should be applied.
-    if (hasSolver) {
-      const minGuess = Math.min(...validResults);
-      winners = players.filter(
-        (p) => results[p][game] > 0 && results[p][game] === minGuess
-      );
-    }
-    // Divide the base points among winners if there are any
-    const splitPoints = hasSolver && winners.length > 0 ? basePoints / winners.length : 0;
-    players.forEach((p) => {
-      let pts;
-      if (results[p][game] === 0) {
-        // Apply a −1 penalty only if at least one player solved the game. If
-        // no one solved, treat all as neutral (0 points) so that missing or
-        // ambiguous shares do not unfairly penalise everyone.
-        pts = hasSolver ? -1 : 0;
-      } else if (winners.includes(p)) {
-        pts = splitPoints;
-      } else {
-        pts = 0;
-      }
-      pointsByPlayer[p][game] = pts;
-      pointsByPlayer[p].total += pts;
-    });
-  };
-  calculateGamePoints('wordle', 1);
-  calculateGamePoints('quordle', 2);
-  calculateGamePoints('octordle', 3);
-  // Create entries for scoreboard including share results and puzzle numbers
-  players.forEach((p) => {
-    scoreboard.push({
-      date: dateStr,
-      player: p,
-      wordlePoints: pointsByPlayer[p].wordle,
-      quordlePoints: pointsByPlayer[p].quordle,
-      octordlePoints: pointsByPlayer[p].octordle,
-      totalPoints: pointsByPlayer[p].total,
-      wordleShare: results[p].wordleShare,
-      quordleShare: results[p].quordleShare,
-      octordleShare: results[p].octordleShare,
-      wordlePuzzle,
-      quordlePuzzle,
-      octordlePuzzle,
-    });
   });
 
+  // For each player with provided results, create or update the scoreboard entry for today
+  Object.keys(results).forEach((p) => {
+    // Find if an entry already exists for this date and player
+    const existingIndex = scoreboard.findIndex(
+      (entry) => entry.date === dateStr && entry.player === p
+    );
+    const res = results[p];
+    if (existingIndex !== -1) {
+      // Update existing entry with new share strings and puzzle numbers; leave points untouched for now
+      const entry = scoreboard[existingIndex];
+      entry.wordleShare = res.wordleShare;
+      entry.quordleShare = res.quordleShare;
+      entry.octordleShare = res.octordleShare;
+      entry.wordlePuzzle = res.wordlePuzzle;
+      entry.quordlePuzzle = res.quordlePuzzle;
+      entry.octordlePuzzle = res.octordlePuzzle;
+      // Reset points to null to ensure they will be recomputed once all players submit
+      entry.wordlePoints = null;
+      entry.quordlePoints = null;
+      entry.octordlePoints = null;
+      entry.totalPoints = null;
+    } else {
+      // Create a new entry with points unset (null)
+      scoreboard.push({
+        date: dateStr,
+        player: p,
+        wordlePoints: null,
+        quordlePoints: null,
+        octordlePoints: null,
+        totalPoints: null,
+        wordleShare: res.wordleShare,
+        quordleShare: res.quordleShare,
+        octordleShare: res.octordleShare,
+        wordlePuzzle: res.wordlePuzzle,
+        quordlePuzzle: res.quordlePuzzle,
+        octordlePuzzle: res.octordlePuzzle,
+      });
+    }
+  });
+
+  // After saving partial submissions, check if all players have provided
+  // results for this date. Only then do we compute points. Also check if
+  // puzzle numbers match across all entries.
+  const entriesForDate = scoreboard.filter((e) => e.date === dateStr);
+  const allPlayersPresent = players.every((p) => {
+    return entriesForDate.some((e) => e.player === p && e.wordleShare && e.quordleShare && e.octordleShare);
+  });
+  let computePoints = false;
+  let wordlePuzzle = null;
+  let quordlePuzzle = null;
+  let octordlePuzzle = null;
+  if (allPlayersPresent) {
+    // Determine if puzzle numbers match across players. If any mismatch or
+    // missing puzzles, we will not compute points yet.
+    const puzzlesMatch = (game) => {
+      const puzzles = entriesForDate
+        .map((e) => e[`${game}Puzzle`])
+        .filter((n) => n !== null && n !== undefined);
+      if (puzzles.length !== players.length) {
+        return false;
+      }
+      return puzzles.every((v) => v === puzzles[0]);
+    };
+    if (puzzlesMatch('wordle') && puzzlesMatch('quordle') && puzzlesMatch('octordle')) {
+      computePoints = true;
+      // Use the first entry's puzzle numbers for saving
+      const refEntry = entriesForDate[0];
+      wordlePuzzle = refEntry.wordlePuzzle;
+      quordlePuzzle = refEntry.quordlePuzzle;
+      octordlePuzzle = refEntry.octordlePuzzle;
+    }
+  }
+
+  if (computePoints) {
+    // Build a results object keyed by player for computing points
+    const tempResults = {};
+    players.forEach((p) => {
+      const entry = entriesForDate.find((e) => e.player === p);
+      tempResults[p] = {
+        wordle: parseWordleShareDetailed(entry.wordleShare).guesses,
+        quordle: parseQuordleShareDetailed(entry.quordleShare).guesses,
+        octordle: parseOctordleShareDetailed(entry.octordleShare).guesses,
+      };
+    });
+    // Compute points as before using updated logic. Points will be
+    // calculated only if at least one player solved the puzzle. A bust (0
+    // guesses) incurs a −1 penalty only when someone solved. Points are
+    // divided among winners with minimal guess counts.
+    const pointsByPlayer = {};
+    players.forEach((p) => {
+      pointsByPlayer[p] = { wordle: 0, quordle: 0, octordle: 0, total: 0 };
+    });
+    const calculateGamePoints = (game, basePoints) => {
+      const validResults = players
+        .filter((p) => tempResults[p][game] > 0)
+        .map((p) => tempResults[p][game]);
+      let winners = [];
+      const hasSolver = validResults.length > 0;
+      if (hasSolver) {
+        const minGuess = Math.min(...validResults);
+        winners = players.filter(
+          (p) => tempResults[p][game] > 0 && tempResults[p][game] === minGuess
+        );
+      }
+      const splitPoints = hasSolver && winners.length > 0 ? basePoints / winners.length : 0;
+      players.forEach((p) => {
+        let pts;
+        if (tempResults[p][game] === 0) {
+          pts = hasSolver ? -1 : 0;
+        } else if (winners.includes(p)) {
+          pts = splitPoints;
+        } else {
+          pts = 0;
+        }
+        pointsByPlayer[p][game] = pts;
+        pointsByPlayer[p].total += pts;
+      });
+    };
+    calculateGamePoints('wordle', 1);
+    calculateGamePoints('quordle', 2);
+    calculateGamePoints('octordle', 3);
+    // Apply points back to entries
+    entriesForDate.forEach((entry) => {
+      const p = entry.player;
+      entry.wordlePoints = pointsByPlayer[p].wordle;
+      entry.quordlePoints = pointsByPlayer[p].quordle;
+      entry.octordlePoints = pointsByPlayer[p].octordle;
+      entry.totalPoints = pointsByPlayer[p].total;
+      entry.wordlePuzzle = wordlePuzzle;
+      entry.quordlePuzzle = quordlePuzzle;
+      entry.octordlePuzzle = octordlePuzzle;
+    });
+  }
+
+  // Persist and update UI
   saveData();
   updateRemoteScoreboard();
   renderScoreboard();
   renderTotals();
   renderDailyResults(dateStr);
-  document.getElementById('score-form').reset();
+
+  // Clear only the textareas for players who submitted results. This
+  // prevents inadvertently wiping entries for players who haven’t played yet.
+  Object.keys(results).forEach((p) => {
+    ['wordle', 'quordle', 'octordle'].forEach((game) => {
+      const ta = document.querySelector(`textarea[data-player="${p}"][data-game="${game}"]`);
+      if (ta) ta.value = '';
+    });
+  });
 }
 
 // Render the scoreboard table based on the in‑memory scoreboard
@@ -318,13 +362,20 @@ function renderScoreboard() {
   const sorted = [...scoreboard].sort((a, b) => b.date.localeCompare(a.date));
   sorted.forEach((entry) => {
     const row = document.createElement('tr');
+    // When points are null (not yet computed), display a dash. Otherwise
+    // display the number. Total points should be formatted to two decimals if
+    // not null.
+    const fmt = (val, isTotal = false) => {
+      if (val === null || val === undefined) return '—';
+      return isTotal ? val.toFixed(2) : val;
+    };
     row.innerHTML = `
       <td>${entry.date}</td>
       <td>${entry.player}</td>
-      <td>${entry.wordlePoints}</td>
-      <td>${entry.quordlePoints}</td>
-      <td>${entry.octordlePoints}</td>
-      <td>${entry.totalPoints}</td>
+      <td>${fmt(entry.wordlePoints)}</td>
+      <td>${fmt(entry.quordlePoints)}</td>
+      <td>${fmt(entry.octordlePoints)}</td>
+      <td>${fmt(entry.totalPoints, true)}</td>
     `;
     tbody.appendChild(row);
   });
@@ -348,34 +399,39 @@ function renderTotals() {
   // Compute wins/losses/busts and accumulate points
   scoreboard.forEach((entry) => {
     const p = entry.player;
+    // Skip entries that have not been scored yet (null points)
+    const w = entry.wordlePoints;
+    const q = entry.quordlePoints;
+    const o = entry.octordlePoints;
+    const t = entry.totalPoints;
+    if (w === null || q === null || o === null || t === null) {
+      return;
+    }
     // Wordle
-    if (entry.wordlePoints > 0) {
+    if (w > 0) {
       totals[p].wordleWins += 1;
-    } else if (entry.wordlePoints < 0) {
+    } else if (w < 0) {
       totals[p].busts += 1;
     } else {
       totals[p].losses += 1;
     }
-
-    // Note: renderDailyResults is defined at the top level of this file. See
-    // below for its implementation.
     // Quordle
-    if (entry.quordlePoints > 0) {
+    if (q > 0) {
       totals[p].quordleWins += 1;
-    } else if (entry.quordlePoints < 0) {
+    } else if (q < 0) {
       totals[p].busts += 1;
     } else {
       totals[p].losses += 1;
     }
     // Octordle
-    if (entry.octordlePoints > 0) {
+    if (o > 0) {
       totals[p].octordleWins += 1;
-    } else if (entry.octordlePoints < 0) {
+    } else if (o < 0) {
       totals[p].busts += 1;
     } else {
       totals[p].losses += 1;
     }
-    totals[p].totalPoints += entry.totalPoints;
+    totals[p].totalPoints += t;
   });
   players.forEach((p) => {
     const row = document.createElement('tr');
