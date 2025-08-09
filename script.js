@@ -248,26 +248,30 @@ function handleAdd() {
     pointsByPlayer[p] = { wordle: 0, quordle: 0, octordle: 0, total: 0 };
   });
   const calculateGamePoints = (game, basePoints) => {
+    // Determine which players successfully solved the game (guess > 0)
     const validResults = players
       .filter((p) => results[p][game] > 0)
       .map((p) => results[p][game]);
     let winners = [];
-    // Determine winners among players who have a non‑zero guess (i.e.
-    // successfully solved the game). If at least one player solved the
-    // game, find the minimum guess and select all players with that guess
-    // as winners. Busts (guess = 0) are never considered winners.
-    if (validResults.length > 0) {
+    const hasSolver = validResults.length > 0;
+    // If at least one player solved the game, find the minimum guess
+    // and select all players with that guess as winners. Otherwise there
+    // are no winners and no penalties should be applied.
+    if (hasSolver) {
       const minGuess = Math.min(...validResults);
       winners = players.filter(
         (p) => results[p][game] > 0 && results[p][game] === minGuess
       );
     }
-    const splitPoints =
-      winners.length > 0 ? basePoints / winners.length : 0;
+    // Divide the base points among winners if there are any
+    const splitPoints = hasSolver && winners.length > 0 ? basePoints / winners.length : 0;
     players.forEach((p) => {
-      let pts = 0;
+      let pts;
       if (results[p][game] === 0) {
-        pts = -1;
+        // Apply a −1 penalty only if at least one player solved the game. If
+        // no one solved, treat all as neutral (0 points) so that missing or
+        // ambiguous shares do not unfairly penalise everyone.
+        pts = hasSolver ? -1 : 0;
       } else if (winners.includes(p)) {
         pts = splitPoints;
       } else {
