@@ -62,17 +62,15 @@
     </section>
 
     <section id="remote-section">
-      <h2>Remote Sync Settings</h2>
-      <p>If you'd like to synchronise scores across devices, you can enable
-      remote syncing via GitHub. The scoreboard data will be stored in
-      <code>scoreboard.json</code> in this repository. You only need to
-      provide a GitHub personal access token with "repo" scope once per
-      device. Leaving these fields blank will still load the remote
-      scoreboard but will not write updates back to GitHub.</p>
+      <h2>Remote Sync</h2>
+      <p>This scoreboard synchronises across devices by storing results in
+      <code>scoreboard.json</code> in this repository.  To enable writing
+      updates, paste a GitHub personal access token (with <em>repo</em>
+      scope) below.  Reading the scoreboard works without a token.
+      Remote syncing is always enabled.</p>
       <form id="remote-form" autocomplete="off" onsubmit="return false;">
-        <label><input type="checkbox" id="enable-remote" checked> Enable remote sync</label><br>
         <label>GitHub Token: <input type="password" id="github-token" placeholder="Paste PAT here"></label>
-        <button type="button" id="remote-save-button" class="secondary-button">Save Remote Settings</button>
+        <button type="button" id="remote-save-button" class="secondary-button">Save Token</button>
       </form>
     </section>
 
